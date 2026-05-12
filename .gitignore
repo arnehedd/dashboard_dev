@@ -1,0 +1,25 @@
+# Brainstorming visual companion (lokal, nicht versionieren)
+.superpowers/
+
+# Runtime state
+logs/
+runs.sqlite
+runs.sqlite-journal
+runs.sqlite-wal
+runs.sqlite-shm
+
+# Daten (Parquet-Tabellen sind Output, nicht Source)
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
