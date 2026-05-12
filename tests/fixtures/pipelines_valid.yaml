@@ -1,0 +1,19 @@
+programs:
+  load_orders:
+    script: programs/load_orders.py
+    parquet: data/orders.parquet
+    timestamp_column: timestamp
+
+  transform_orders:
+    script: programs/transform_orders.py
+    parquet: data/orders_clean.parquet
+    timestamp_column: timestamp
+    timeout_seconds: 60
+
+pipelines:
+  daily_orders:
+    name: "Tägliche Order-Verarbeitung"
+    description: "Lädt und transformiert."
+    steps:
+      - load_orders
+      - transform_orders
