@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from config import load_config
+import pytest
+
+from config import ConfigError, load_config
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "pipelines_valid.yaml"
@@ -26,6 +28,23 @@ def test_load_pipeline():
     p = cfg.pipelines["daily_orders"]
     assert p.name == "Tägliche Order-Verarbeitung"
     assert [s.program for s in p.steps] == ["load_orders", "transform_orders"]
-    # plain-string steps depend on the previous step in the list
     assert p.steps[0].needs == []
     assert p.steps[1].needs == ["load_orders"]
+
+
+def test_missing_program_reference_raises():
+    fixture = Path(__file__).parent / "fixtures" / "pipelines_missing_ref.yaml"
+    with pytest.raises(ConfigError, match="nonexistent_program"):
+        load_config(fixture)
+
+
+def test_cycle_raises():
+    fixture = Path(__file__).parent / "fixtures" / "pipelines_cycle.yaml"
+    with pytest.raises(ConfigError, match="cycle"):
+        load_config(fixture)
+
+
+def test_topo_sort_linear():
+    cfg = load_config(FIXTURE)
+    order = cfg.topo_sort("daily_orders")
+    assert order == ["load_orders", "transform_orders"]

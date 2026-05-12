@@ -1,0 +1,12 @@
+programs:
+  a: {script: a.py, parquet: a.parquet, timestamp_column: ts}
+  b: {script: b.py, parquet: b.parquet, timestamp_column: ts}
+
+pipelines:
+  loop:
+    name: "Loop"
+    steps:
+      - program: a
+        needs: [b]
+      - program: b
+        needs: [a]

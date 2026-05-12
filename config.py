@@ -5,6 +5,10 @@ from typing import Any
 import yaml
 
 
+class ConfigError(ValueError):
+    pass
+
+
 @dataclass
 class Program:
     id: str
@@ -33,6 +37,9 @@ class Config:
     programs: dict[str, Program]
     pipelines: dict[str, Pipeline]
 
+    def topo_sort(self, pipeline_id: str) -> list[str]:
+        return _topo_sort_steps(self.pipelines[pipeline_id].steps)
+
 
 def _parse_step(raw: Any, prev_program: str | None) -> Step:
     if isinstance(raw, str):
@@ -41,6 +48,42 @@ def _parse_step(raw: Any, prev_program: str | None) -> Step:
     if isinstance(raw, dict) and "program" in raw:
         return Step(program=raw["program"], needs=list(raw.get("needs", [])))
     raise ValueError(f"Invalid step entry: {raw!r}")
+
+
+def _topo_sort_steps(steps: list[Step]) -> list[str]:
+    remaining = {s.program: set(s.needs) for s in steps}
+    order: list[str] = []
+    while remaining:
+        ready = [p for p, deps in remaining.items() if not deps]
+        if not ready:
+            raise ConfigError(f"cycle in steps {list(remaining)}")
+        for p in ready:
+            order.append(p)
+            del remaining[p]
+            for deps in remaining.values():
+                deps.discard(p)
+    return order
+
+
+def _validate(cfg: "Config") -> None:
+    for pipeline in cfg.pipelines.values():
+        step_ids = {s.program for s in pipeline.steps}
+        for step in pipeline.steps:
+            if step.program not in cfg.programs:
+                raise ConfigError(
+                    f"Pipeline {pipeline.id!r} references unknown program "
+                    f"{step.program!r}"
+                )
+            for dep in step.needs:
+                if dep not in step_ids:
+                    raise ConfigError(
+                        f"Pipeline {pipeline.id!r}: step {step.program!r} "
+                        f"needs {dep!r} which is not in this pipeline"
+                    )
+        try:
+            _topo_sort_steps(pipeline.steps)
+        except ConfigError as exc:
+            raise ConfigError(f"Pipeline {pipeline.id!r}: {exc}") from exc
 
 
 def load_config(path: str | Path) -> Config:
@@ -66,4 +109,6 @@ def load_config(path: str | Path) -> Config:
         pipelines[pid] = Pipeline(
             id=pid, name=p["name"], description=p.get("description", ""), steps=steps
         )
-    return Config(programs=programs, pipelines=pipelines)
+    cfg = Config(programs=programs, pipelines=pipelines)
+    _validate(cfg)
+    return cfg

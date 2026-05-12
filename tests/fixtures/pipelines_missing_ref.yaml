@@ -1,0 +1,12 @@
+programs:
+  load_orders:
+    script: programs/load_orders.py
+    parquet: data/orders.parquet
+    timestamp_column: timestamp
+
+pipelines:
+  broken:
+    name: "Broken"
+    steps:
+      - load_orders
+      - nonexistent_program
