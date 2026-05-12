@@ -353,5 +353,45 @@ def make_app(config: Config, state: State, runner: Runner) -> Dash:
 def _register_callbacks(
     app: Dash, config: Config, state: State, runner: Runner
 ) -> None:
-    # Filled in Tasks 10-12.
-    pass
+
+    @app.callback(
+        Output("selected-view", "data"),
+        Input({"type": "pipeline-item", "id": ALL}, "n_clicks"),
+        Input({"type": "section", "id": "all-programs"}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def on_select(_pipeline_clicks, _programs_click):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        triggered = ctx.triggered_id
+        if isinstance(triggered, dict) and triggered.get("type") == "pipeline-item":
+            return {"kind": "pipeline", "id": triggered["id"]}
+        return {"kind": "programs"}
+
+    @app.callback(
+        Output("detail-panel", "children"),
+        Input("selected-view", "data"),
+        Input("refresh-interval", "n_intervals"),
+    )
+    def render_detail(view, _tick):
+        if not view or view.get("kind") == "none":
+            return _detail_placeholder()
+        if view["kind"] == "pipeline":
+            pipeline = config.pipelines[view["id"]]
+            statuses = {s.program: state.get_program_status(s.program)
+                        for s in pipeline.steps}
+            parquet = {
+                s.program: get_meta(
+                    config.programs[s.program].parquet,
+                    config.programs[s.program].timestamp_column,
+                )
+                for s in pipeline.steps
+            }
+            runs = state.list_recent_runs(pipeline_id=view["id"], limit=10)
+            return render_pipeline_detail(pipeline, statuses, parquet, runs)
+        # programs view
+        statuses = {pid: state.get_program_status(pid) for pid in config.programs}
+        parquet = {pid: get_meta(p.parquet, p.timestamp_column)
+                   for pid, p in config.programs.items()}
+        return render_programs_detail(config, statuses, parquet)

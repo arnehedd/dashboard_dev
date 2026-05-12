@@ -39,3 +39,15 @@ def test_format_status_pill_returns_styled_span():
     span = format_status_pill(StepStatus.FAILED)
     assert span.children == "failed"
     assert STATUS_COLORS[StepStatus.FAILED] in span.style["background"]
+
+
+def test_render_pipeline_detail_contains_graph_and_table():
+    from app import render_pipeline_detail
+    cfg = _cfg()
+    statuses = {"a": StepStatus.SUCCESS, "b": StepStatus.IDLE, "c": StepStatus.IDLE}
+    parquet = {"a": None, "b": None, "c": None}
+    runs: list = []
+    rendered = render_pipeline_detail(cfg.pipelines["p"], statuses, parquet, runs)
+    serialized = repr(rendered)
+    assert "Cytoscape" in serialized
+    assert "a" in serialized and "b" in serialized and "c" in serialized
