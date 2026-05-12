@@ -174,6 +174,21 @@ class State:
             for r in rows
         ]
 
+    # --- recovery ---
+
+    def recover_orphans(self) -> int:
+        with self._lock, self._connect() as conn:
+            now = _now()
+            cur1 = conn.execute(
+                "UPDATE steps SET status=?, ended_at=? WHERE status=?",
+                (StepStatus.FAILED.value, now, StepStatus.RUNNING.value),
+            )
+            cur2 = conn.execute(
+                "UPDATE runs SET status=?, ended_at=? WHERE status=?",
+                (RunStatus.FAILED.value, now, RunStatus.RUNNING.value),
+            )
+            return (cur1.rowcount or 0) + (cur2.rowcount or 0)
+
     # --- queries for UI ---
 
     def get_program_status(self, program_id: str) -> StepStatus:

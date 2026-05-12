@@ -50,3 +50,18 @@ def test_get_program_status_returns_latest(state: State):
 
 def test_get_program_status_idle_when_no_runs(state: State):
     assert state.get_program_status("never_ran") == StepStatus.IDLE
+
+
+def test_recover_orphans_marks_running_as_failed(state: State):
+    run_id = state.start_run(pipeline_id="p", program_id=None)
+    state.start_step(run_id, program_id="x", log_path="x.log")
+    # Simulate dashboard crash: both run and step still 'running'
+
+    n = state.recover_orphans()
+    assert n == 2  # one run, one step
+
+    steps = state.list_steps(run_id)
+    assert steps[0].status == StepStatus.FAILED
+    runs = state.list_recent_runs(pipeline_id="p", limit=1)
+    assert runs[0].status == RunStatus.FAILED
+    assert runs[0].ended_at is not None
