@@ -395,3 +395,33 @@ def _register_callbacks(
         parquet = {pid: get_meta(p.parquet, p.timestamp_column)
                    for pid, p in config.programs.items()}
         return render_programs_detail(config, statuses, parquet)
+
+    @app.callback(
+        Output("run-pipeline-btn", "disabled"),
+        Input("run-pipeline-btn", "n_clicks"),
+        DashState("selected-view", "data"),
+        prevent_initial_call=True,
+    )
+    def on_run_pipeline(n, view):
+        if not n or not view or view.get("kind") != "pipeline":
+            return no_update
+        try:
+            runner.run_pipeline(view["id"])
+        except RuntimeError:
+            pass  # already running
+        return True  # disable; auto-refresh re-renders shortly
+
+    @app.callback(
+        Output({"type": "run-program", "id": ALL}, "disabled"),
+        Input({"type": "run-program", "id": ALL}, "n_clicks"),
+        DashState({"type": "run-program", "id": ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def on_run_program(_clicks, ids):
+        ctx = callback_context
+        if not ctx.triggered:
+            return [no_update] * len(ids)
+        triggered = ctx.triggered_id
+        if isinstance(triggered, dict) and triggered.get("type") == "run-program":
+            runner.run_program(triggered["id"])
+        return [no_update] * len(ids)
