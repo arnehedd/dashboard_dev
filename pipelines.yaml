@@ -1,0 +1,18 @@
+programs:
+  example_load:
+    script: programs/example_load.py
+    parquet: data/example_orders.parquet
+    timestamp_column: timestamp
+
+  example_transform:
+    script: programs/example_transform.py
+    parquet: data/example_orders_clean.parquet
+    timestamp_column: timestamp
+
+pipelines:
+  example_pipeline:
+    name: "Example Order Pipeline"
+    description: "Lädt eine Demo-Tabelle und transformiert sie."
+    steps:
+      - example_load
+      - example_transform

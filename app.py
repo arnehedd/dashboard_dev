@@ -350,7 +350,7 @@ def make_app(config: Config, state: State, runner: Runner) -> Dash:
     return app
 
 
-def _register_callbacks(
+def _register_callbacks(  # noqa: C901
     app: Dash, config: Config, state: State, runner: Runner
 ) -> None:
 
@@ -461,3 +461,25 @@ def _register_callbacks(
                 body = "(leeres Log)"
         title = f"{program_id} — {latest.status.value if latest else 'idle'}"
         return base_shown, title, body
+
+
+if __name__ == "__main__":
+    import argparse
+
+    from config import load_config
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="pipelines.yaml")
+    parser.add_argument("--db", default="runs.sqlite")
+    parser.add_argument("--logs", default="logs")
+    parser.add_argument("--port", type=int, default=8050)
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    st = State(args.db)
+    n = st.recover_orphans()
+    if n:
+        print(f"[startup] recovered {n} orphaned run/step entries")
+    rnr = Runner(cfg, st, logs_dir=Path(args.logs), project_root=Path("."))
+    application = make_app(cfg, st, rnr)
+    application.run(debug=False, port=args.port)
