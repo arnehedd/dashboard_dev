@@ -425,3 +425,39 @@ def _register_callbacks(
         if isinstance(triggered, dict) and triggered.get("type") == "run-program":
             runner.run_program(triggered["id"])
         return [no_update] * len(ids)
+
+    @app.callback(
+        Output("log-modal", "style"),
+        Output("log-modal-title", "children"),
+        Output("log-modal-body", "children"),
+        Input("pipeline-dag", "tapNodeData"),
+        Input("log-modal-close", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def on_node_tap(tap_data, _close_clicks):
+        ctx = callback_context
+        triggered = ctx.triggered_id
+        base_hidden = {"display": "none", "position": "fixed", "inset": "0",
+                       "background": "rgba(0,0,0,0.4)",
+                       "alignItems": "center", "justifyContent": "center",
+                       "zIndex": 1000}
+        base_shown = {**base_hidden, "display": "flex"}
+        if triggered == "log-modal-close":
+            return base_hidden, "", ""
+        if not tap_data:
+            return no_update, no_update, no_update
+        program_id = tap_data["id"]
+        latest = state.get_latest_step_for_program(program_id)
+        if latest is None or not latest.log_path:
+            body = f"Noch kein Lauf für {program_id!r}."
+        else:
+            try:
+                body = Path(latest.log_path).read_text(
+                    encoding="utf-8", errors="replace"
+                )
+            except FileNotFoundError:
+                body = f"Log file not found: {latest.log_path}"
+            if not body.strip():
+                body = "(leeres Log)"
+        title = f"{program_id} — {latest.status.value if latest else 'idle'}"
+        return base_shown, title, body

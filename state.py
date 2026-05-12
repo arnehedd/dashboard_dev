@@ -201,3 +201,23 @@ class State:
         if row is None:
             return StepStatus.IDLE
         return StepStatus(row["status"])
+
+    def get_latest_step_for_program(self, program_id: str) -> StepRow | None:
+        with self._connect() as conn:
+            r = conn.execute(
+                "SELECT * FROM steps WHERE program_id=? "
+                "ORDER BY started_at DESC, id DESC LIMIT 1",
+                (program_id,),
+            ).fetchone()
+        if r is None:
+            return None
+        return StepRow(
+            id=r["id"],
+            run_id=r["run_id"],
+            program_id=r["program_id"],
+            status=StepStatus(r["status"]),
+            started_at=r["started_at"],
+            ended_at=r["ended_at"],
+            exit_code=r["exit_code"],
+            log_path=r["log_path"],
+        )

@@ -52,6 +52,21 @@ def test_get_program_status_idle_when_no_runs(state: State):
     assert state.get_program_status("never_ran") == StepStatus.IDLE
 
 
+def test_get_latest_step_for_program(state: State):
+    run_id = state.start_run(pipeline_id="p", program_id=None)
+    s1 = state.start_step(run_id, program_id="x", log_path="logs/1/x.log")
+    state.finish_step(s1, status=StepStatus.SUCCESS, exit_code=0)
+    run2 = state.start_run(pipeline_id="p", program_id=None)
+    s2 = state.start_step(run2, program_id="x", log_path="logs/2/x.log")
+    state.finish_step(s2, status=StepStatus.FAILED, exit_code=1)
+
+    step = state.get_latest_step_for_program("x")
+    assert step is not None
+    assert step.log_path == "logs/2/x.log"
+    assert step.status == StepStatus.FAILED
+    assert state.get_latest_step_for_program("never_ran") is None
+
+
 def test_recover_orphans_marks_running_as_failed(state: State):
     run_id = state.start_run(pipeline_id="p", program_id=None)
     state.start_step(run_id, program_id="x", log_path="x.log")
